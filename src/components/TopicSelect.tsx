@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { DECKS, type Deck } from "../data/decks";
+import { battleEnabled } from "../lib/supabase";
 import DashboardSheet from "./DashboardSheet";
 
 type Props = {
   onPick: (deck: Deck) => void;
+  onBattle: () => void;
 };
 
 const BOOK_HEIGHTS = ["h-36", "h-44", "h-40"];
 const BOOK_WIDTHS  = ["w-14", "w-12", "w-16"];
 
-export default function TopicSelect({ onPick }: Props) {
+export default function TopicSelect({ onPick, onBattle }: Props) {
   const [showDash, setShowDash] = useState(false);
 
   const best: Record<string, number> = JSON.parse(
@@ -28,12 +30,22 @@ export default function TopicSelect({ onPick }: Props) {
       <header className="pt-10 pb-8">
         <div className="flex items-start justify-between">
           <h1 className="text-6xl font-semibold tracking-tight">KATA</h1>
-          <button
-            onClick={() => setShowDash(true)}
-            className="mt-2 rounded-full border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-500 hover:border-neutral-400 hover:text-neutral-900"
-          >
-            Stats
-          </button>
+          <div className="mt-2 flex gap-2">
+            {battleEnabled && (
+              <button
+                onClick={onBattle}
+                className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium text-white hover:bg-neutral-700"
+              >
+                Battle
+              </button>
+            )}
+            <button
+              onClick={() => setShowDash(true)}
+              className="rounded-full border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-500 hover:border-neutral-400 hover:text-neutral-900"
+            >
+              Stats
+            </button>
+          </div>
         </div>
         <p className="mt-3 text-neutral-500">
           Your body is the controller. Act out the word to flip the card.

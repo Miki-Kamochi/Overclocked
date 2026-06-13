@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Deck } from "../data/decks";
 import { usePoseClassifier } from "../hooks/usePoseClassifier";
 import { MotionMatcher } from "../game/matcher";
+import { seededShuffle } from "../game/shuffle";
 import WebcamView from "./WebcamView";
 
 function pickVoice(): SpeechSynthesisVoice | null {
@@ -20,10 +21,24 @@ function pickVoice(): SpeechSynthesisVoice | null {
   return voices.find((v) => v.lang === "en-US") ?? null;
 }
 
+/** Live opponent state shown during a battle. */
+export type OpponentInfo = {
+  name: string;
+  cardIndex: number;
+  score: number;
+  total: number;
+};
+
 type Props = {
   deck: Deck;
   onFinish: (score: number, elapsed: number) => void;
   onQuit: () => void;
+  /** When set, cards are shuffled deterministically so both battlers match. */
+  seed?: number;
+  /** Called on every card clear (battle mode broadcasts progress). */
+  onProgress?: (cardIndex: number, score: number) => void;
+  /** Opponent's live progress; absent in solo mode (renders nothing extra). */
+  opponent?: OpponentInfo | null;
 };
 
 function formatTime(s: number) {
@@ -32,8 +47,18 @@ function formatTime(s: number) {
   return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
-export default function GameScreen({ deck, onFinish, onQuit }: Props) {
+export default function GameScreen({
+  deck,
+  onFinish,
+  onQuit,
+  seed,
+  onProgress,
+  opponent,
+}: Props) {
   const cards = useMemo(() => {
+    // In battle mode a shared seed guarantees both players see the same order;
+    // solo play stays random.
+    if (seed !== undefined) return seededShuffle(deck.cards, seed);
     const arr = [...deck.cards];
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -100,6 +125,8 @@ export default function GameScreen({ deck, onFinish, onQuit }: Props) {
       advancingRef.current = true;
       setJustCleared(true);
       setScore((s) => s + 1);
+      // Broadcast progress immediately so the opponent's bar tracks each clear.
+      onProgress?.(cardIndex + 1, score + 1);
 
       window.setTimeout(() => {
         setJustCleared(false);
@@ -112,7 +139,7 @@ export default function GameScreen({ deck, onFinish, onQuit }: Props) {
         }
       }, 700);
     }
-  }, [allPredictions, ready, matcher, cardIndex, cards.length, onFinish, score]);
+  }, [allPredictions, ready, matcher, cardIndex, cards.length, onFinish, score, onProgress]);
 
   const matchesTarget = prediction.topClass === card.motion;
 
@@ -146,6 +173,26 @@ export default function GameScreen({ deck, onFinish, onQuit }: Props) {
           </span>
         </div>
       </div>
+
+      {/* Opponent race bar (battle mode only) */}
+      {opponent && (
+        <div className="flex items-center gap-3 text-xs">
+          <span className="w-24 shrink-0 truncate font-medium text-neutral-500">
+            {opponent.name}
+          </span>
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-neutral-200">
+            <div
+              className="h-full rounded-full bg-rose-400 transition-[width] duration-300"
+              style={{
+                width: `${opponent.total > 0 ? (opponent.score / opponent.total) * 100 : 0}%`,
+              }}
+            />
+          </div>
+          <span className="shrink-0 tabular-nums text-neutral-500">
+            {opponent.score} / {opponent.total}
+          </span>
+        </div>
+      )}
 
       {/* Word card */}
       <div

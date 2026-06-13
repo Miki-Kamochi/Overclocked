@@ -3,11 +3,13 @@ import type { Deck } from "./data/decks";
 import TopicSelect from "./components/TopicSelect";
 import GameScreen from "./components/GameScreen";
 import ResultScreen from "./components/ResultScreen";
+import BattleScreen from "./components/BattleScreen";
 
 type Screen =
   | { name: "select" }
   | { name: "game"; deck: Deck }
-  | { name: "result"; deck: Deck; score: number; elapsed: number };
+  | { name: "result"; deck: Deck; score: number; elapsed: number }
+  | { name: "battle" };
 
 const BEST_KEY     = "kata.best";
 const STATS_KEY    = "kata.stats";
@@ -57,7 +59,14 @@ export default function App() {
   return (
     <div className="min-h-full bg-white text-neutral-900">
       {screen.name === "select" && (
-        <TopicSelect onPick={(deck) => setScreen({ name: "game", deck })} />
+        <TopicSelect
+          onPick={(deck) => setScreen({ name: "game", deck })}
+          onBattle={() => setScreen({ name: "battle" })}
+        />
+      )}
+
+      {screen.name === "battle" && (
+        <BattleScreen onHome={() => setScreen({ name: "select" })} />
       )}
 
       {screen.name === "game" && (

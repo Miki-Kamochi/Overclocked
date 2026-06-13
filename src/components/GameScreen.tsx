@@ -1,24 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Deck } from "../data/decks";
+import type { Deck, Lang } from "../data/decks";
+import { cardText } from "../data/decks";
 import { usePoseClassifier } from "../hooks/usePoseClassifier";
 import { MotionMatcher } from "../game/matcher";
 import { seededShuffle } from "../game/shuffle";
 import WebcamView from "./WebcamView";
 
-function pickVoice(): SpeechSynthesisVoice | null {
+// BCP-47 codes for the speech synthesizer, keyed by app language.
+const SPEECH_LANG: Record<Lang, string> = {
+  en: "en-US",
+  zh: "zh-CN",
+  ja: "ja-JP",
+};
+
+function pickVoice(langCode: string): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices();
-  const preferred = [
-    "Microsoft Aria Online (Natural) - English (United States)",
-    "Microsoft Jenny Online (Natural) - English (United States)",
-    "Microsoft Guy Online (Natural) - English (United States)",
-    "Google US English",
-    "Samantha",
-  ];
-  for (const name of preferred) {
-    const v = voices.find((v) => v.name === name);
-    if (v) return v;
+  if (langCode === "en-US") {
+    const preferred = [
+      "Microsoft Aria Online (Natural) - English (United States)",
+      "Microsoft Jenny Online (Natural) - English (United States)",
+      "Microsoft Guy Online (Natural) - English (United States)",
+      "Google US English",
+      "Samantha",
+    ];
+    for (const name of preferred) {
+      const v = voices.find((v) => v.name === name);
+      if (v) return v;
+    }
   }
-  return voices.find((v) => v.lang === "en-US") ?? null;
+  // Match by language prefix (e.g. "zh", "ja"); null → browser default voice.
+  const prefix = langCode.slice(0, 2);
+  return voices.find((v) => v.lang.startsWith(prefix)) ?? null;
 }
 
 /** Live opponent state shown during a battle. */
@@ -48,6 +60,8 @@ type Props = {
   opponent?: OpponentInfo | null;
   /** The local player's profile, shown next to the opponent in battle mode. */
   me?: MeInfo;
+  /** Display + speech language for the card word and hint. Defaults to English. */
+  lang?: Lang;
 };
 
 /** Round avatar with a neutral fallback when no photo was captured. */
@@ -118,6 +132,7 @@ export default function GameScreen({
   onProgress,
   opponent,
   me,
+  lang = "en",
 }: Props) {
   const cards = useMemo(() => {
     // In battle mode a shared seed guarantees both players see the same order;
@@ -143,6 +158,7 @@ export default function GameScreen({
     usePoseClassifier(deck.modelPath, showSkeleton);
 
   const card = cards[cardIndex];
+  const { word, hint } = cardText(card, lang);
   const matcher = useMemo(() => new MotionMatcher(card.motion), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Point the matcher at each new card.
@@ -151,22 +167,23 @@ export default function GameScreen({
     setProgress(0);
   }, [card.motion, matcher]);
 
-  // Read the word then the hint aloud; cancel both if the card changes.
+  // Read the word then the hint aloud; cancel both if the card or language changes.
   useEffect(() => {
     if (!ready) return;
-    const word = new SpeechSynthesisUtterance(card.word);
-    word.lang = "en-US";
-    word.rate = 0.9;
-    const hint = new SpeechSynthesisUtterance(card.hint);
-    hint.lang = "en-US";
-    hint.rate = 0.9;
-    const voice = pickVoice();
-    if (voice) { word.voice = voice; hint.voice = voice; }
-    word.onend = () => window.speechSynthesis.speak(hint);
+    const langCode = SPEECH_LANG[lang];
+    const wordUtt = new SpeechSynthesisUtterance(word);
+    wordUtt.lang = langCode;
+    wordUtt.rate = 0.9;
+    const hintUtt = new SpeechSynthesisUtterance(hint);
+    hintUtt.lang = langCode;
+    hintUtt.rate = 0.9;
+    const voice = pickVoice(langCode);
+    if (voice) { wordUtt.voice = voice; hintUtt.voice = voice; }
+    wordUtt.onend = () => window.speechSynthesis.speak(hintUtt);
     window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(word);
+    window.speechSynthesis.speak(wordUtt);
     return () => window.speechSynthesis.cancel();
-  }, [card.word, card.hint, ready]);
+  }, [word, hint, lang, ready]);
 
   // Stopwatch — starts when camera is ready, stops when deck is complete.
   useEffect(() => {
@@ -270,14 +287,14 @@ export default function GameScreen({
           Act it out
         </div>
         <div className="mt-2 text-5xl font-semibold tracking-tight">
-          {card.word}
+          {word}
         </div>
         <div
           className={`mt-3 text-sm ${
             justCleared ? "text-neutral-300" : "text-neutral-500"
           }`}
         >
-          {card.hint}
+          {hint}
         </div>
       </div>
 
@@ -355,7 +372,7 @@ export default function GameScreen({
             onClick={() => simulate(card.motion)}
             className="mt-3 rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-neutral-700"
           >
-            Simulate “{card.word}”
+            Simulate “{word}”
           </button>
         </div>
       )}

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { DECKS, type Deck } from "../data/decks";
+import { DECKS, type Deck, type Lang } from "../data/decks";
 import type { BattleStatus, Opponent } from "../net/useBattleRoom";
 import ProfileCapture from "./ProfileCapture";
+import LanguageToggle from "./LanguageToggle";
 
 type Props = {
   roomCode: string | null;
@@ -11,6 +12,8 @@ type Props = {
   hostDeck: Deck | null;
   myAvatar: string | null;
   onCapture: (dataUrl: string) => void;
+  lang: Lang;
+  onLang: (lang: Lang) => void;
   onCreate: (deckId: string) => void;
   onJoin: (code: string) => void;
   onStart: () => void;
@@ -25,6 +28,8 @@ export default function BattleLobby({
   hostDeck,
   myAvatar,
   onCapture,
+  lang,
+  onLang,
   onCreate,
   onJoin,
   onStart,
@@ -99,6 +104,16 @@ export default function BattleLobby({
               Take your photo so your opponent can see who they're racing.
             </p>
             <ProfileCapture value={myAvatar} onCapture={onCapture} />
+
+            <div className="mt-8 text-xs uppercase tracking-[0.2em] text-neutral-400">
+              Language
+            </div>
+            <p className="mt-1 text-sm text-neutral-500">
+              Pick your own — you both race the same motions.
+            </p>
+            <div className="mt-3">
+              <LanguageToggle value={lang} onChange={onLang} />
+            </div>
 
             {isHost ? (
               <button

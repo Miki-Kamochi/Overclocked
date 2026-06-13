@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Deck } from "./data/decks";
+import type { Deck, Lang } from "./data/decks";
 import TopicSelect from "./components/TopicSelect";
 import GameScreen from "./components/GameScreen";
 import ResultScreen from "./components/ResultScreen";
@@ -7,8 +7,8 @@ import BattleScreen from "./components/BattleScreen";
 
 type Screen =
   | { name: "select" }
-  | { name: "game"; deck: Deck }
-  | { name: "result"; deck: Deck; score: number; elapsed: number }
+  | { name: "game"; deck: Deck; lang: Lang }
+  | { name: "result"; deck: Deck; lang: Lang; score: number; elapsed: number }
   | { name: "battle" };
 
 const BEST_KEY     = "kata.best";
@@ -60,7 +60,7 @@ export default function App() {
     <div className="min-h-full bg-white text-neutral-900">
       {screen.name === "select" && (
         <TopicSelect
-          onPick={(deck) => setScreen({ name: "game", deck })}
+          onPick={(deck, lang) => setScreen({ name: "game", deck, lang })}
           onBattle={() => setScreen({ name: "battle" })}
         />
       )}
@@ -74,10 +74,11 @@ export default function App() {
           // remount when replaying the same deck so internal state resets
           key={screen.deck.id}
           deck={screen.deck}
+          lang={screen.lang}
           onFinish={(score, elapsed) => {
             writeBest(screen.deck.id, score);
             writeSession(score, elapsed);
-            setScreen({ name: "result", deck: screen.deck, score, elapsed });
+            setScreen({ name: "result", deck: screen.deck, lang: screen.lang, score, elapsed });
           }}
           onQuit={() => setScreen({ name: "select" })}
         />
@@ -89,7 +90,7 @@ export default function App() {
           score={screen.score}
           elapsed={screen.elapsed}
           best={readBest(screen.deck.id)}
-          onReplay={() => setScreen({ name: "game", deck: screen.deck })}
+          onReplay={() => setScreen({ name: "game", deck: screen.deck, lang: screen.lang })}
           onHome={() => setScreen({ name: "select" })}
         />
       )}

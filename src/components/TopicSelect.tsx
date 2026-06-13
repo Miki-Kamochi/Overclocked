@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { DECKS, type Deck } from "../data/decks";
+import { DECKS, type Deck, type Lang } from "../data/decks";
 import { battleEnabled } from "../lib/supabase";
 import DashboardSheet from "./DashboardSheet";
+import LanguageToggle from "./LanguageToggle";
 
 type Props = {
-  onPick: (deck: Deck) => void;
+  onPick: (deck: Deck, lang: Lang) => void;
   onBattle: () => void;
 };
 
@@ -13,6 +14,7 @@ const BOOK_WIDTHS  = ["w-14", "w-12", "w-16"];
 
 export default function TopicSelect({ onPick, onBattle }: Props) {
   const [showDash, setShowDash] = useState(false);
+  const [lang, setLang] = useState<Lang>("en");
 
   const best: Record<string, number> = JSON.parse(
     localStorage.getItem("kata.best") ?? "{}"
@@ -50,6 +52,12 @@ export default function TopicSelect({ onPick, onBattle }: Props) {
         <p className="mt-3 text-neutral-500">
           Your body is the controller. Act out the word to flip the card.
         </p>
+        <div className="mt-5 flex items-center gap-3">
+          <span className="text-xs uppercase tracking-[0.15em] text-neutral-400">
+            Language
+          </span>
+          <LanguageToggle value={lang} onChange={setLang} />
+        </div>
       </header>
 
       {anyPlayed && (
@@ -63,7 +71,7 @@ export default function TopicSelect({ onPick, onBattle }: Props) {
         {DECKS.map((deck, i) => (
           <button
             key={deck.id}
-            onClick={() => onPick(deck)}
+            onClick={() => onPick(deck, lang)}
             className={`${BOOK_HEIGHTS[i % BOOK_HEIGHTS.length]} ${BOOK_WIDTHS[i % BOOK_WIDTHS.length]} flex shrink-0 items-center justify-center rounded-t border-2 border-neutral-900 bg-white transition-transform duration-150 hover:-translate-y-2 active:scale-95`}
           >
             <span

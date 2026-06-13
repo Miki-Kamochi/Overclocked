@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getDeck } from "../data/decks";
+import { getDeck, type Lang } from "../data/decks";
 import { useBattleRoom } from "../net/useBattleRoom";
 import GameScreen from "./GameScreen";
 import BattleLobby from "./BattleLobby";
@@ -25,6 +25,7 @@ export default function BattleScreen({ onHome }: Props) {
   const [outcome, setOutcome] = useState<null | "win" | "lose">(null);
   const [myScore, setMyScore] = useState<number | null>(null);
   const [myAvatar, setMyAvatar] = useState<string | null>(null);
+  const [lang, setLang] = useState<Lang>("en");
 
   const {
     status,
@@ -80,6 +81,7 @@ export default function BattleScreen({ onHome }: Props) {
         key={`${roomCode}-${seed}`}
         deck={deck}
         seed={seed}
+        lang={lang}
         me={{ name: "You", avatar: myAvatar }}
         opponent={
           opponent
@@ -113,6 +115,8 @@ export default function BattleScreen({ onHome }: Props) {
       hostDeck={hostDeck}
       myAvatar={myAvatar}
       onCapture={(dataUrl) => setMyAvatar(dataUrl || null)}
+      lang={lang}
+      onLang={setLang}
       onCreate={(id) => {
         setHostDeckId(id);
         setIsHost(true);

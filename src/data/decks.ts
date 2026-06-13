@@ -20,11 +20,15 @@ export function cardText(card: Card, lang: Lang): { word: string; hint: string }
   return { word: t?.word ?? card.word, hint: t?.hint ?? card.hint };
 }
 
+export type Difficulty = "Easy" | "Medium" | "Hard";
+
 export type Deck = {
   id: string;
   title: string;
   description: string;
   emoji: string;
+  difficulty: Difficulty;
+  popularity: number;
   // Folder under /public/models/<id>/ holding model.json, metadata.json, weights.bin.
   // Until the real model is trained, the app falls back to the mock classifier.
   modelPath: string;
@@ -41,6 +45,8 @@ export const DECKS: Deck[] = [
     title: "Directions",
     description: "Point your way through left, right, up and forward.",
     emoji: "🧭",
+    difficulty: "Easy",
+    popularity: 1243,
     modelPath: "/models/directions/",
     cards: [
       { word: "Left",    motion: "left",    hint: "Extend your left arm to the left",
@@ -68,6 +74,8 @@ export const DECKS: Deck[] = [
     title: "Body Parts",
     description: "Touch your head, shoulders, knees and toes.",
     emoji: "🦴",
+    difficulty: "Medium",
+    popularity: 867,
     modelPath: "/models/body-parts/",
     cards: [
       { word: "Head",     motion: "head",     hint: "Touch or point to your head",
@@ -95,6 +103,8 @@ export const DECKS: Deck[] = [
     title: "Action Verbs",
     description: "Act out everyday actions with your whole body.",
     emoji: "🏃",
+    difficulty: "Hard",
+    popularity: 412,
     modelPath: "/models/action-verbs/",
     cards: [
       { word: "Throw", motion: "throw", hint: "Make a throwing gesture",

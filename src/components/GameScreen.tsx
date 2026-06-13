@@ -218,7 +218,7 @@ export default function GameScreen({
       </div>
 
       {/* Camera + live predictions side by side */}
-      <div className="flex min-h-0 flex-1 gap-4">
+      <div className="flex w-full gap-4">
         <div className="min-w-0 flex-1">
           <WebcamView videoRef={videoRef} canvasRef={canvasRef} />
         </div>

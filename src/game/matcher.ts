@@ -9,6 +9,12 @@ type ClassProb = { className: string; probability: number };
 export class MotionMatcher {
   private targetMotion: string;
   private hits = 0;
+  // Gate that prevents a held pose from clearing the next card. After a match
+  // we disarm; the player must show one non-qualifying frame (return to neutral
+  // or change pose) before a new match can accumulate. This matters when
+  // consecutive cards share a motion (e.g. Left→West), where setTarget — and so
+  // reset() — is never called between them.
+  private armed = true;
 
   constructor(targetMotion: string) {
     this.targetMotion = targetMotion;
@@ -21,6 +27,7 @@ export class MotionMatcher {
 
   reset() {
     this.hits = 0;
+    this.armed = true;
   }
 
   /**
@@ -40,6 +47,14 @@ export class MotionMatcher {
     const qualifies =
       targetProb >= MATCH_THRESHOLD && targetProb - idleProb >= IDLE_MARGIN;
 
+    // Disarmed after a match: wait for the player to leave the pose before any
+    // new accumulation, so a still-held motion can't auto-clear the next card.
+    if (!this.armed) {
+      if (!qualifies) this.armed = true;
+      this.hits = 0;
+      return false;
+    }
+
     if (qualifies) {
       this.hits++;
     } else {
@@ -47,7 +62,8 @@ export class MotionMatcher {
     }
 
     if (this.hits >= REQUIRED_HITS) {
-      this.reset();
+      this.hits = 0;
+      this.armed = false;
       return true;
     }
     return false;

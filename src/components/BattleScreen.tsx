@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getDeck, type Lang } from "../data/decks";
 import { useBattleRoom } from "../net/useBattleRoom";
+import { playSound } from "../lib/sounds";
 import GameScreen from "./GameScreen";
 import BattleLobby from "./BattleLobby";
 
@@ -33,6 +34,8 @@ export default function BattleScreen({ onHome, initialDeckId }: Props) {
     opponent,
     seed,
     deckId,
+    gameLang,
+    gameStartAt,
     startGame,
     sendProgress,
     sendFinish,
@@ -41,10 +44,41 @@ export default function BattleScreen({ onHome, initialDeckId }: Props) {
     // labels us "Opponent" (each player calls themselves "You" locally).
   } = useBattleRoom(roomCode, "", isHost, myAvatar);
 
+  // Delay GameScreen mount until the scheduled startAt so both players'
+  // 3-2-1 countdowns begin at the same wall-clock moment.
+  const [gameReady, setGameReady] = useState(false);
+  useEffect(() => {
+    if (status !== "playing" || gameStartAt === null) return;
+    const delay = Math.max(0, gameStartAt - Date.now());
+    const id = window.setTimeout(() => setGameReady(true), delay);
+    return () => window.clearTimeout(id);
+  }, [status, gameStartAt]);
+
+  // Auto-start when both players have photos (host drives it).
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (
+      isHost &&
+      hostDeckId &&
+      myAvatar &&
+      opponent?.avatar &&
+      status === "ready" &&
+      !autoStartedRef.current
+    ) {
+      autoStartedRef.current = true;
+      startGame(hostDeckId, lang);
+    }
+  }, [isHost, hostDeckId, myAvatar, opponent?.avatar, status, lang, startGame]);
+
   // Resolve win/lose: the first finish observed locally settles it.
   useEffect(() => {
     if (opponentFinished) {
-      setOutcome((o) => o ?? (myScore !== null ? "win" : "lose"));
+      setOutcome((prev) => {
+        if (prev) return prev;
+        const result = myScore !== null ? "win" : "lose";
+        playSound("gameFinish");
+        return result;
+      });
     }
   }, [opponentFinished, myScore]);
 
@@ -65,8 +99,31 @@ export default function BattleScreen({ onHome, initialDeckId }: Props) {
             ? "You cleared the deck first."
             : `${opponent?.name ?? "Your opponent"} cleared the deck first.`}
         </p>
+
+        {/* Player photos */}
+        <div className="mt-8 flex items-end gap-6">
+          {[
+            { src: myAvatar, name: "You", isWinner: won, tilt: "-rotate-1" },
+            { src: opponent?.avatar, name: opponent?.name ?? "Opponent", isWinner: !won, tilt: "rotate-2" },
+          ].map(({ src, name, isWinner, tilt }) => (
+            <div key={name} className={`inline-flex flex-col items-center ${tilt}`}>
+              {isWinner && <span className="mb-1 text-xl">👑</span>}
+              <div className={`rounded-sm bg-white p-3 shadow-lg ${isWinner ? "ring-2 ring-amber-400" : ""}`}>
+                {src ? (
+                  <img src={src} alt={name} className="h-40 w-40 rounded-sm object-cover" />
+                ) : (
+                  <div className="flex h-40 w-40 items-center justify-center rounded-sm bg-neutral-100 text-4xl font-bold text-neutral-400">
+                    {name[0]?.toUpperCase() ?? "?"}
+                  </div>
+                )}
+                <p className="mt-2 text-center text-[10px] text-neutral-400">{name}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
         <button
-          onClick={onHome}
+          onClick={() => { playSound("uiClick"); onHome(); }}
           className="mt-10 self-start rounded-lg bg-neutral-900 px-6 py-3 text-sm font-medium text-white hover:bg-neutral-700"
         >
           Home
@@ -76,13 +133,13 @@ export default function BattleScreen({ onHome, initialDeckId }: Props) {
   }
 
   // ── Playing ────────────────────────────────────────────────────────────
-  if (status === "playing" && seed !== null && deck) {
+  if (status === "playing" && seed !== null && deck && gameReady) {
     return (
       <GameScreen
         key={`${roomCode}-${seed}`}
         deck={deck}
         seed={seed}
-        lang={lang}
+        lang={gameLang ?? lang}
         me={{ name: "You", avatar: myAvatar }}
         opponent={
           opponent
@@ -127,9 +184,6 @@ export default function BattleScreen({ onHome, initialDeckId }: Props) {
       onJoin={(c) => {
         setIsHost(false);
         setRoomCode(c);
-      }}
-      onStart={() => {
-        if (hostDeckId) startGame(hostDeckId);
       }}
       onHome={onHome}
     />

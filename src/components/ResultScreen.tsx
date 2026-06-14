@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { Deck } from "../data/decks";
+import { playSound } from "../lib/sounds";
 
 function formatTime(s: number) {
   const m = Math.floor(s / 60);
@@ -12,6 +13,7 @@ type Props = {
   score: number;
   elapsed: number;
   best: number;
+  photo?: string;
   onReplay: () => void;
   onHome: () => void;
 };
@@ -21,6 +23,7 @@ export default function ResultScreen({
   score,
   elapsed,
   best,
+  photo,
   onReplay,
   onHome,
 }: Props) {
@@ -39,6 +42,13 @@ export default function ResultScreen({
       <h1 className="mt-2 text-4xl font-semibold tracking-tight">
         Deck complete
       </h1>
+
+      {photo && (
+        <div className="mt-6 inline-block rotate-2 rounded-sm bg-white p-3 shadow-lg">
+          <img src={photo} alt="finish" className="h-44 w-44 rounded-sm object-cover" />
+          <p className="mt-2 text-center text-[10px] text-neutral-400">your winning pose</p>
+        </div>
+      )}
 
       <div className="mt-8 flex items-end gap-12">
         <div>
@@ -66,13 +76,13 @@ export default function ResultScreen({
 
       <div className="mt-8 flex gap-3">
         <button
-          onClick={onReplay}
+          onClick={() => { playSound("uiClick"); onReplay(); }}
           className="rounded-lg bg-neutral-900 px-6 py-3 text-sm font-medium text-white hover:bg-neutral-700"
         >
           Play again
         </button>
         <button
-          onClick={onHome}
+          onClick={() => { playSound("uiClick"); onHome(); }}
           className="rounded-lg border border-neutral-300 px-6 py-3 text-sm font-medium text-neutral-900 hover:border-neutral-900"
         >
           Home

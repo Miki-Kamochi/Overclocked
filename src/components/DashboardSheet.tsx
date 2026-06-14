@@ -2,6 +2,14 @@ import { DECKS } from "../data/decks";
 
 type Props = { onClose: () => void };
 
+function safeParse<T>(raw: string | null, fallback: T): T {
+  try {
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function formatTime(s: number) {
   const m = Math.floor(s / 60);
   const sec = s % 60;
@@ -15,15 +23,18 @@ const DECK_BAR_COLOR: Record<string, string> = {
 };
 
 export default function DashboardSheet({ onClose }: Props) {
-  const best: Record<string, number> = JSON.parse(
-    localStorage.getItem("kata.best") ?? '{"directions":7,"body-parts":5,"action-verbs":2}'
+  const best = safeParse<Record<string, number>>(
+    localStorage.getItem("kata.best"),
+    { "directions": 7, "body-parts": 5, "action-verbs": 2 }
   );
-  const stats = JSON.parse(
-    localStorage.getItem("kata.stats") ?? '{"totalGames":14,"totalCards":83,"totalTime":740}'
+  const stats = safeParse(
+    localStorage.getItem("kata.stats"),
+    { totalGames: 14, totalCards: 83, totalTime: 740 }
   );
   const FAKE_ACTIVITY: Record<string, number> = { "-6": 3, "-5": 7, "-4": 2, "-3": 9, "-2": 5, "-1": 4, "0": 6 };
-  const activity: Record<string, number> = JSON.parse(
-    localStorage.getItem("kata.activity") ?? "{}"
+  const activity = safeParse<Record<string, number>>(
+    localStorage.getItem("kata.activity"),
+    {}
   );
 
   const days = Array.from({ length: 7 }, (_, i) => {

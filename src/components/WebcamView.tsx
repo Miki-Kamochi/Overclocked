@@ -11,7 +11,7 @@ type Props = {
  */
 export default function WebcamView({ videoRef, canvasRef }: Props) {
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-neutral-900">
+    <div className="relative h-full min-h-0 w-full overflow-hidden rounded-lg bg-neutral-900">
       <video ref={videoRef} className="hidden" playsInline muted />
       <canvas ref={canvasRef} className="h-full w-full object-cover" />
     </div>

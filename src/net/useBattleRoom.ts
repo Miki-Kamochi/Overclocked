@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
+import type { Lang } from "../data/decks";
 
 export type BattleStatus =
   | "connecting" // subscribing to the channel
@@ -22,7 +23,9 @@ export type Opponent = {
 // which exceeds Presence's payload limit, so it travels over broadcast instead.
 type PresenceMeta = { id: string; name: string };
 
-type StartPayload = { seed: number; deckId: string };
+// startAt is a wall-clock ms timestamp — both sides delay GameScreen mount
+// until then so the 3-2-1 countdown is perfectly in sync.
+type StartPayload = { seed: number; deckId: string; lang: Lang; startAt: number };
 type ProgressPayload = { id: string; cardIndex: number; score: number };
 type FinishPayload = { id: string; score: number; finishedAt: number };
 type ProfilePayload = { id: string; avatar: string };
@@ -58,6 +61,8 @@ export function useBattleRoom(
   const [opponent, setOpponent] = useState<Opponent | null>(null);
   const [seed, setSeed] = useState<number | null>(null);
   const [deckId, setDeckId] = useState<string | null>(null);
+  const [gameLang, setGameLang] = useState<Lang | null>(null);
+  const [gameStartAt, setGameStartAt] = useState<number | null>(null);
   const [opponentFinished, setOpponentFinished] = useState(false);
 
   useEffect(() => {
@@ -133,6 +138,8 @@ export function useBattleRoom(
         const p = payload as StartPayload;
         setSeed(p.seed);
         setDeckId(p.deckId);
+        setGameLang(p.lang);
+        setGameStartAt(p.startAt);
         setStatus("playing");
       })
       .on("broadcast", { event: "progress" }, ({ payload }) => {
@@ -179,18 +186,23 @@ export function useBattleRoom(
     });
   }, [avatar]);
 
-  const startGame = useCallback((dId: string) => {
+  const startGame = useCallback((dId: string, lang: Lang) => {
     const channel = channelRef.current;
     if (!channel) return;
     const newSeed = Math.floor(Math.random() * 2 ** 31);
+    // Give the broadcast 600 ms to reach the guest before both sides
+    // mount GameScreen, so the 3-2-1 countdown starts at the same moment.
+    const startAt = Date.now() + 600;
     channel.send({
       type: "broadcast",
       event: "start",
-      payload: { seed: newSeed, deckId: dId } satisfies StartPayload,
+      payload: { seed: newSeed, deckId: dId, lang, startAt } satisfies StartPayload,
     });
     // The sender doesn't receive its own broadcast, so set state directly.
     setSeed(newSeed);
     setDeckId(dId);
+    setGameLang(lang);
+    setGameStartAt(startAt);
     setStatus("playing");
   }, []);
 
@@ -219,6 +231,8 @@ export function useBattleRoom(
     opponent,
     seed,
     deckId,
+    gameLang,
+    gameStartAt,
     isHost,
     startGame,
     sendProgress,

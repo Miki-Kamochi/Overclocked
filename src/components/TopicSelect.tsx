@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DECKS, type Deck, type Lang } from "../data/decks";
 import { battleEnabled } from "../lib/supabase";
+import { playSound } from "../lib/sounds";
 import DashboardSheet from "./DashboardSheet";
 import LanguageToggle from "./LanguageToggle";
 
@@ -17,6 +18,14 @@ const DECK_COLORS: Record<string, { cover: string; spine: string }> = {
 
 const BOOK_HEIGHTS = ["h-[25vh]", "h-[30vh]", "h-[28vh]"];
 
+function safeParse<T>(raw: string | null, fallback: T): T {
+  try {
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function TopicSelect({ onPick, onBattle }: Props) {
   const [showDash, setShowDash] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -24,11 +33,13 @@ export default function TopicSelect({ onPick, onBattle }: Props) {
   const [lang, setLang] = useState<Lang>("en");
 
   function handleBookClick(deckId: string, isSelected: boolean) {
+    playSound("uiClick");
     setSelected(isSelected ? null : deckId);
   }
 
-  const best: Record<string, number> = JSON.parse(
-    localStorage.getItem("kata.best") ?? "{}"
+  const best = safeParse<Record<string, number>>(
+    localStorage.getItem("kata.best"),
+    {}
   );
 
   // Hover previews; click locks in (and shows Start).
@@ -218,14 +229,14 @@ export default function TopicSelect({ onPick, onBattle }: Props) {
                   <div className="flex gap-2">
                     {battleEnabled && (
                       <button
-                        onClick={() => onBattle(displayDeck)}
+                        onClick={() => { playSound("uiClick"); onBattle(displayDeck); }}
                         className="shrink-0 rounded-lg border border-neutral-900 px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-neutral-100"
                       >
                         Battle
                       </button>
                     )}
                     <button
-                      onClick={() => onPick(displayDeck, lang)}
+                      onClick={() => { playSound("uiClick"); onPick(displayDeck, lang); }}
                       className="shrink-0 rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700"
                     >
                       Solo →

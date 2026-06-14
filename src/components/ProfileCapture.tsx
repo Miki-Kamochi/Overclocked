@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { playSound } from "../lib/sounds";
 
 type Props = {
   /** Current photo as a JPEG data-URL, or null if not yet taken. */
   value: string | null;
   /** Called with the captured JPEG data-URL. */
   onCapture: (dataUrl: string) => void;
+  /** Show a larger preview circle — used on the dedicated photo page. */
+  large?: boolean;
 };
 
 const SIZE = 160; // square output side in px
@@ -14,7 +17,7 @@ const SIZE = 160; // square output side in px
  * square JPEG (data-URL) used as the player's battle avatar. Stops the camera
  * on unmount so GameScreen's classifier can claim it.
  */
-export default function ProfileCapture({ value, onCapture }: Props) {
+export default function ProfileCapture({ value, onCapture, large = false }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [ready, setReady] = useState(false);
@@ -75,32 +78,31 @@ export default function ProfileCapture({ value, onCapture }: Props) {
     return <p className="mt-6 text-sm text-red-600">{error}</p>;
   }
 
+  const circleSize = large ? "h-72 w-72" : "h-36 w-36";
+
   // Captured: show the thumbnail + retake.
   if (value) {
     return (
-      <div className="mt-6 flex items-center gap-4">
+      <div className="flex flex-col items-center gap-2">
         <img
           src={value}
           alt="Your battle photo"
-          className="h-20 w-20 rounded-full object-cover ring-2 ring-neutral-900"
+          className={`${circleSize} rounded-full object-cover ring-2 ring-neutral-900`}
         />
-        <div>
-          <div className="text-sm font-medium text-neutral-900">Photo ready</div>
-          <button
-            onClick={() => onCapture("")}
-            className="mt-1 text-sm text-neutral-400 hover:text-neutral-900"
-          >
-            Retake
-          </button>
-        </div>
+        <button
+          onClick={() => { playSound("uiClick"); onCapture(""); }}
+          className="text-xs text-neutral-400 hover:text-neutral-900"
+        >
+          Retake
+        </button>
       </div>
     );
   }
 
   // Live preview + capture button.
   return (
-    <div className="mt-6">
-      <div className="relative h-40 w-40 overflow-hidden rounded-full bg-neutral-900">
+    <div className="flex flex-col items-center gap-3">
+      <div className={`relative ${circleSize} overflow-hidden rounded-full bg-neutral-900`}>
         <video
           ref={videoRef}
           playsInline
@@ -110,9 +112,9 @@ export default function ProfileCapture({ value, onCapture }: Props) {
         />
       </div>
       <button
-        onClick={takePhoto}
+        onClick={() => { playSound("uiClick"); takePhoto(); }}
         disabled={!ready}
-        className="mt-4 rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white enabled:hover:bg-neutral-700 disabled:opacity-30"
+        className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white enabled:hover:bg-neutral-700 disabled:opacity-30"
       >
         Take photo
       </button>

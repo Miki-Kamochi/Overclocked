@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Deck, Lang } from "../data/decks";
-import { cardText } from "../data/decks";
+import { cardText, IDLE_CLASS } from "../data/decks";
 import { usePoseClassifier } from "../hooks/usePoseClassifier";
 import { MotionMatcher } from "../game/matcher";
 import { seededShuffle } from "../game/shuffle";
 import WebcamView from "./WebcamView";
+import { playSound } from "../lib/sounds";
 
 // BCP-47 codes for the speech synthesizer, keyed by app language.
 const SPEECH_LANG: Record<Lang, string> = {
@@ -50,7 +51,7 @@ export type MeInfo = {
 
 type Props = {
   deck: Deck;
-  onFinish: (score: number, elapsed: number) => void;
+  onFinish: (score: number, elapsed: number, photo?: string) => void;
   onQuit: () => void;
   /** When set, cards are shuffled deterministically so both battlers match. */
   seed?: number;
@@ -148,13 +149,29 @@ export default function GameScreen({
 
   const [cardIndex, setCardIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [progress, setProgress] = useState(0);
   const [justCleared, setJustCleared] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [showSkeleton, setShowSkeleton] = useState(true);
   const gameOverRef = useRef(false);
 
-  const { videoRef, canvasRef, ready, isMock, prediction, allPredictions, error, simulate } =
+  // 3-2-1-Go countdown before the game starts.
+  const [countdown, setCountdown] = useState<number | "go" | null>(3);
+  useEffect(() => {
+    if (countdown === null) return;
+    // The audio file is the full "3, 2, 1, go!" clip — play it once at the start.
+    if (countdown === 3) playSound("countdownTick");
+    const delay = countdown === "go" ? 800 : 1000;
+    const id = window.setTimeout(() => {
+      if (countdown === "go") {
+        setCountdown(null);
+      } else {
+        setCountdown((c) => (typeof c === "number" && c > 1 ? c - 1 : "go"));
+      }
+    }, delay);
+    return () => window.clearTimeout(id);
+  }, [countdown]);
+
+  const { videoRef, canvasRef, ready, isMock, allPredictions, error, simulate } =
     usePoseClassifier(deck.modelPath, showSkeleton);
 
   const card = cards[cardIndex];
@@ -164,12 +181,11 @@ export default function GameScreen({
   // Point the matcher at each new card.
   useEffect(() => {
     matcher.setTarget(card.motion);
-    setProgress(0);
   }, [card.motion, matcher]);
 
   // Read the word then the hint aloud; cancel both if the card or language changes.
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || countdown !== null) return;
     const langCode = SPEECH_LANG[lang];
     const wordUtt = new SpeechSynthesisUtterance(word);
     wordUtt.lang = langCode;
@@ -183,68 +199,113 @@ export default function GameScreen({
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(wordUtt);
     return () => window.speechSynthesis.cancel();
-  }, [word, hint, lang, ready]);
+  }, [word, hint, lang, ready, countdown]);
 
-  // Stopwatch — starts when camera is ready, stops when deck is complete.
+  // Stopwatch — increments every second while the loop is running.
   useEffect(() => {
-    if (!ready || gameOverRef.current) return;
+    if (!ready || countdown !== null || gameOverRef.current) return;
     const id = window.setTimeout(() => setElapsed((t) => t + 1), 1000);
     return () => window.clearTimeout(id);
-  }, [ready, elapsed]);
+  }, [ready, countdown, elapsed]);
 
   // Guard so the brief "cleared" animation can't double-advance.
   const advancingRef = useRef(false);
 
   // Feed every prediction frame into the matcher.
   useEffect(() => {
-    if (!ready || advancingRef.current) return;
+    if (!ready || countdown !== null || advancingRef.current) return;
 
     const matched = matcher.push(allPredictions);
-    setProgress(matcher.progress);
 
     if (matched) {
       advancingRef.current = true;
       setJustCleared(true);
       setScore((s) => s + 1);
-      // Broadcast progress immediately so the opponent's bar tracks each clear.
       onProgress?.(cardIndex + 1, score + 1);
+
+      const isLastCard = cardIndex + 1 >= cards.length;
+      playSound(isLastCard ? "gameFinish" : "cardCorrect");
+
+      const photo = isLastCard
+        ? (canvasRef.current?.toDataURL("image/jpeg", 0.7) ?? undefined)
+        : undefined;
 
       window.setTimeout(() => {
         setJustCleared(false);
         advancingRef.current = false;
-        if (cardIndex + 1 >= cards.length) {
+        if (isLastCard) {
           gameOverRef.current = true;
-          onFinish(score + 1, elapsed);
+          onFinish(score + 1, elapsed, photo);
         } else {
           setCardIndex((i) => i + 1);
         }
       }, 700);
     }
-  }, [allPredictions, ready, matcher, cardIndex, cards.length, onFinish, score, onProgress]);
+  }, [allPredictions, ready, countdown, matcher, cardIndex, cards.length, onFinish, score, onProgress]);
 
-  const matchesTarget = prediction.topClass === card.motion;
+  // Live feedback for the flashcard: "correct" the moment a card clears, "wrong"
+  // while the player is confidently holding some *other* motion (not idle).
+  const top = allPredictions.length
+    ? allPredictions.reduce((a, b) => (b.probability > a.probability ? b : a))
+    : null;
+  const isWrong =
+    !justCleared &&
+    !!top &&
+    top.className !== IDLE_CLASS &&
+    top.className !== card.motion &&
+    top.probability >= 0.65;
+  const state: "correct" | "wrong" | "idle" = justCleared
+    ? "correct"
+    : isWrong
+    ? "wrong"
+    : "idle";
+
+  // Play wrong sound once each time the state enters "wrong" (not on every frame).
+  const prevStateRef = useRef<typeof state>("idle");
+  useEffect(() => {
+    if (state === "wrong" && prevStateRef.current !== "wrong") {
+      playSound("cardWrong");
+    }
+    prevStateRef.current = state;
+  }, [state]);
 
   return (
-    <div className="mx-auto flex h-screen max-w-5xl flex-col gap-3 px-6 py-4 xl:max-w-7xl xl:px-12">
+    <div className="relative mx-auto flex h-screen max-w-5xl flex-col gap-3 overflow-hidden px-6 py-4">
+
+      {/* 3-2-1-Go countdown overlay */}
+      {countdown !== null && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-neutral-950/80">
+          <span
+            key={String(countdown)}
+            className="animate-count-in select-none font-bold leading-none text-white"
+            style={{ fontSize: "clamp(6rem, 20vw, 14rem)" }}
+          >
+            {countdown === "go" ? "Go!" : countdown}
+          </span>
+        </div>
+      )}
       {/* Top bar */}
-      <div className="flex items-center justify-between text-sm text-neutral-400">
-        <button
-          onClick={onQuit}
-          className="-ml-1 px-1 hover:text-neutral-900"
-        >
-          Quit
-        </button>
+      <div className="flex shrink-0 items-center justify-between text-sm text-neutral-400">
+        <div>
+          <p className="font-display text-lg font-bold leading-none tracking-tight">{deck.title}</p>
+          <button
+            onClick={() => { playSound("uiClick"); onQuit(); }}
+            className="mt-0.5 text-xs text-neutral-400 hover:text-neutral-900"
+          >
+            ← Quit
+          </button>
+        </div>
         <div className="flex items-center gap-2 tabular-nums tracking-tight text-neutral-900">
-          <span className="text-2xl font-medium">{formatTime(elapsed)}</span>
+          <span className="font-display text-4xl font-medium">{formatTime(elapsed)}</span>
           <span className="text-neutral-300">·</span>
-          <span className="text-base font-medium">{cardIndex + 1} / {cards.length}</span>
+          <span className="text-2xl font-medium">{cardIndex + 1} / {cards.length}</span>
         </div>
         <button
-          onClick={() => setShowSkeleton((v) => !v)}
+          onClick={() => { playSound("uiClick"); setShowSkeleton((v) => !v); }}
           className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
             showSkeleton
               ? "bg-neutral-900 text-white"
-              : "bg-neutral-100 text-neutral-400 hover:bg-neutral-200"
+              : "border border-neutral-300 text-neutral-400 hover:border-neutral-400"
           }`}
         >
           <span className={`inline-block h-2 w-2 rounded-full ${showSkeleton ? "bg-sky-400" : "bg-neutral-300"}`} />
@@ -254,7 +315,7 @@ export default function GameScreen({
 
       {/* Head-to-head progress (battle mode only) */}
       {opponent && (
-        <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3">
+        <div className="flex shrink-0 flex-col gap-2 rounded-lg border border-neutral-200 p-3">
           <RacerRow
             name={me?.name ?? "You"}
             avatar={me?.avatar}
@@ -272,42 +333,77 @@ export default function GameScreen({
         </div>
       )}
 
-      {/* Word card */}
-      <div
-        className={`rounded-xl px-6 py-5 text-center transition-all duration-300 ${
-          justCleared
-            ? "scale-[1.02] bg-neutral-900 text-white"
-            : "bg-white text-neutral-900"
-        }`}
-      >
-        <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-400">
-          Act it out
-        </div>
-        <div className="mt-1 text-4xl font-bold tracking-tight lg:text-6xl xl:text-7xl">
-          {word}
-        </div>
+      {/* Main: flashcard + bars (left column), camera hero (right column) */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+
+      {/* LEFT column */}
+      <div className="flex min-h-0 w-full flex-col gap-4 lg:w-80 lg:shrink-0 xl:w-96">
+
+      {/* Word flashcard — sticky note */}
+      <div className="shrink-0" style={{ perspective: "1200px" }}>
         <div
-          className={`mt-2 text-sm ${
-            justCleared ? "text-neutral-300" : "text-neutral-500"
-          }`}
+          key={cardIndex}
+          className="animate-flip-in"
+          style={{
+            transform: state === "wrong" ? undefined : "rotate(-1.5deg)",
+          }}
         >
-          {hint}
+          <div
+            className={`flex min-h-[16rem] flex-col justify-between rounded-sm px-7 py-6 shadow-[4px_6px_24px_rgba(0,0,0,0.18)] transition-all duration-300 lg:min-h-[20rem] ${
+              state === "correct"
+                ? "animate-pop bg-emerald-300"
+                : state === "wrong"
+                ? "animate-shake bg-red-200"
+                : "bg-amber-100"
+            }`}
+          >
+            {/* Top label */}
+            <div className={`text-[11px] font-bold uppercase tracking-[0.25em] ${
+              state === "correct" ? "text-emerald-800" :
+              state === "wrong"   ? "text-red-600" :
+              "text-amber-600"
+            }`}>
+              {state === "correct" ? "✓ Correct!" : state === "wrong" ? "✗ Not quite" : "Act it out"}
+            </div>
+
+            {/* Word — centre of card */}
+            <div className="text-center">
+              <div className={`text-5xl font-bold tracking-tight xl:text-6xl ${
+                state === "correct" ? "text-emerald-900" :
+                state === "wrong"   ? "text-red-800" :
+                "text-neutral-900"
+              }`}>
+                {word}
+              </div>
+              <div className={`mt-3 text-sm leading-snug ${
+                state === "correct" ? "text-emerald-800" :
+                state === "wrong"   ? "text-red-700" :
+                "text-neutral-600"
+              }`}>
+                {hint}
+              </div>
+            </div>
+
+            {/* Bottom stamp */}
+            <div className={`text-right text-[10px] tabular-nums ${
+              state === "correct" ? "text-emerald-700" :
+              state === "wrong"   ? "text-red-500" :
+              "text-amber-500"
+            }`}>
+              {cardIndex + 1} / {cards.length}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Camera + live predictions */}
-      <div className="flex w-full flex-col gap-4 lg:flex-row">
-        <div className="min-w-0 flex-1">
-          <WebcamView videoRef={videoRef} canvasRef={canvasRef} />
-        </div>
-
-        {ready && !isMock && allPredictions.length > 0 && (
-          <div className="flex flex-row flex-wrap gap-3 lg:w-52 lg:shrink-0 lg:flex-col lg:justify-center">
+      {/* Live predictions — fill the rest of the left column */}
+      {ready && !isMock && allPredictions.length > 0 && (
+          <div className="flex flex-row flex-wrap gap-4 lg:min-h-0 lg:flex-1 lg:flex-col lg:justify-center">
             {[...allPredictions]
               .sort((a, b) => b.probability - a.probability)
               .map((p) => (
-                <div key={p.className} className="flex min-w-[140px] flex-1 flex-col gap-1 lg:min-w-0 lg:flex-none">
-                  <div className="flex justify-between text-xs">
+                <div key={p.className} className="flex min-w-[160px] flex-1 flex-col gap-1.5 lg:min-w-0 lg:flex-none">
+                  <div className="flex justify-between text-sm">
                     <span className={`font-mono ${p.className === card.motion ? "font-semibold text-neutral-900" : "text-neutral-400"}`}>
                       {p.className}
                     </span>
@@ -315,7 +411,7 @@ export default function GameScreen({
                       {Math.round(p.probability * 100)}%
                     </span>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-neutral-200">
+                  <div className="h-2.5 overflow-hidden rounded-full bg-neutral-200">
                     <div
                       className={`h-full rounded-full transition-[width] duration-100 ${p.className === card.motion ? "bg-neutral-900" : "bg-neutral-300"}`}
                       style={{ width: `${p.probability * 100}%` }}
@@ -324,22 +420,15 @@ export default function GameScreen({
                 </div>
               ))}
           </div>
-        )}
+      )}
+      </div>{/* end LEFT column */}
+
+      {/* RIGHT column: camera hero */}
+      <div className="min-h-0 min-w-0 w-full flex-1">
+        <WebcamView videoRef={videoRef} canvasRef={canvasRef} />
       </div>
 
-      {/* Confidence / progress bar */}
-      <div>
-        <div className="mb-1.5 flex justify-between text-xs text-neutral-400">
-          <span className={matchesTarget ? "font-medium text-neutral-900" : ""}>{card.motion}</span>
-          <span className="tabular-nums">{Math.round(progress * 100)}%</span>
-        </div>
-        <div className="h-2.5 w-full overflow-hidden rounded-full bg-neutral-200">
-          <div
-            className="h-full rounded-full bg-neutral-900 transition-[width] duration-100"
-            style={{ width: `${progress * 100}%` }}
-          />
-        </div>
-      </div>
+      </div>{/* end main */}
 
       {/* Status / mock controls */}
       {!ready && !error && (
@@ -347,12 +436,12 @@ export default function GameScreen({
       )}
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
       {ready && isMock && (
-        <div className="border-t border-neutral-200 pt-4 text-center">
+        <div className="shrink-0 border-t border-neutral-200 pt-4 text-center">
           <p className="text-xs text-neutral-500">
             No trained model found — running in mock mode.
           </p>
           <button
-            onClick={() => simulate(card.motion)}
+            onClick={() => { playSound("uiClick"); simulate(card.motion); }}
             className="mt-3 rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-neutral-700"
           >
             Simulate “{word}”

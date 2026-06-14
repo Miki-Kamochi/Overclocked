@@ -8,7 +8,7 @@ import BattleScreen from "./components/BattleScreen";
 type Screen =
   | { name: "select" }
   | { name: "game"; deck: Deck; lang: Lang }
-  | { name: "result"; deck: Deck; lang: Lang; score: number; elapsed: number }
+  | { name: "result"; deck: Deck; lang: Lang; score: number; elapsed: number; photo?: string }
   | { name: "battle"; deckId: string };
 
 const BEST_KEY     = "kata.best";
@@ -75,10 +75,10 @@ export default function App() {
           key={screen.deck.id}
           deck={screen.deck}
           lang={screen.lang}
-          onFinish={(score, elapsed) => {
+          onFinish={(score, elapsed, photo) => {
             writeBest(screen.deck.id, score);
             writeSession(score, elapsed);
-            setScreen({ name: "result", deck: screen.deck, lang: screen.lang, score, elapsed });
+            setScreen({ name: "result", deck: screen.deck, lang: screen.lang, score, elapsed, photo });
           }}
           onQuit={() => setScreen({ name: "select" })}
         />
@@ -90,6 +90,7 @@ export default function App() {
           score={screen.score}
           elapsed={screen.elapsed}
           best={readBest(screen.deck.id)}
+          photo={screen.photo}
           onReplay={() => setScreen({ name: "game", deck: screen.deck, lang: screen.lang })}
           onHome={() => setScreen({ name: "select" })}
         />

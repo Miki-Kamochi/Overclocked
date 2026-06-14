@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Deck, Lang } from "../data/decks";
-import { cardText, IDLE_CLASS } from "../data/decks";
+import { cardText, IDLE_CLASS, GAME_LENGTH } from "../data/decks";
 import { usePoseClassifier } from "../hooks/usePoseClassifier";
 import { MotionMatcher } from "../game/matcher";
 import { seededShuffle } from "../game/shuffle";
@@ -135,8 +135,6 @@ export default function GameScreen({
   me,
   lang = "en",
 }: Props) {
-  const GAME_LENGTH = 10;
-
   const cards = useMemo(() => {
     // In battle mode a shared seed guarantees both players see the same order;
     // solo play stays random.

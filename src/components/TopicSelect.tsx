@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DECKS, type Deck, type Lang } from "../data/decks";
+import { DECKS, GAME_LENGTH, type Deck, type Lang } from "../data/decks";
 import { battleEnabled } from "../lib/supabase";
 import { playSound } from "../lib/sounds";
 import DashboardSheet from "./DashboardSheet";
@@ -203,7 +203,7 @@ export default function TopicSelect({ onPick, onBattle }: Props) {
                     {best[displayDeck.id] !== undefined && (
                       <div className="px-4">
                         <div className="text-lg font-bold tabular-nums">
-                          {Math.round((best[displayDeck.id] / displayDeck.cards.length) * 100)}%
+                          {Math.round((best[displayDeck.id] / GAME_LENGTH) * 100)}%
                         </div>
                         <div className="text-[10px] text-neutral-400">best score</div>
                       </div>

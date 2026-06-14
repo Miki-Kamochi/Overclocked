@@ -1,4 +1,4 @@
-import { DECKS } from "../data/decks";
+import { DECKS, GAME_LENGTH } from "../data/decks";
 
 type Props = { onClose: () => void };
 
@@ -85,12 +85,12 @@ export default function DashboardSheet({ onClose }: Props) {
               <div className="text-xs text-neutral-400">Progress</div>
               {DECKS.map((deck) => {
                 const b = best[deck.id] ?? 0;
-                const pct = deck.cards.length > 0 ? (b / deck.cards.length) * 100 : 0;
+                const pct = (b / GAME_LENGTH) * 100;
                 return (
                   <div key={deck.id}>
                     <div className="mb-2 flex items-center justify-between text-sm">
                       <span className="font-medium">{deck.title}</span>
-                      <span className="tabular-nums text-neutral-400">{b} / {deck.cards.length}</span>
+                      <span className="tabular-nums text-neutral-400">{b} / {GAME_LENGTH}</span>
                     </div>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
                       <div

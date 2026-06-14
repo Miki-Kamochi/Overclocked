@@ -39,6 +39,10 @@ export type Deck = {
 // false-trigger while the player is standing still.
 export const IDLE_CLASS = "idle";
 
+// Every game plays exactly this many cards. A deck shorter than this is shuffled
+// and repeated to fill the count, so the player's max score is always GAME_LENGTH.
+export const GAME_LENGTH = 10;
+
 export const DECKS: Deck[] = [
   {
     id: "directions",

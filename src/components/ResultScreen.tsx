@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { Deck } from "../data/decks";
+import { GAME_LENGTH } from "../data/decks";
 import { playSound } from "../lib/sounds";
 
 function formatTime(s: number) {
@@ -27,7 +28,7 @@ export default function ResultScreen({
   onReplay,
   onHome,
 }: Props) {
-  const total = deck.cards.length;
+  const total = GAME_LENGTH;
   const isBest = score >= best;
 
   useEffect(() => {

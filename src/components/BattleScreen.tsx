@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getDeck, type Lang } from "../data/decks";
+import { getDeck, GAME_LENGTH, type Lang } from "../data/decks";
 import { useBattleRoom } from "../net/useBattleRoom";
 import { playSound } from "../lib/sounds";
 import GameScreen from "./GameScreen";
@@ -148,7 +148,7 @@ export default function BattleScreen({ onHome, initialDeckId }: Props) {
                 avatar: opponent.avatar,
                 cardIndex: opponent.cardIndex,
                 score: opponent.score,
-                total: deck.cards.length,
+                total: GAME_LENGTH,
               }
             : null
         }

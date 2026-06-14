@@ -1,0 +1,1 @@
+{"tfjsVersion":"1.7.4","tmVersion":"0.8.6","packageVersion":"0.8.6","packageName":"@teachablemachine/pose","timeStamp":"2026-06-14T03:35:55.755Z","userMetadata":{},"modelName":"Body-Language","labels":["Idle","Correct","Wrong","Thinking","T_pose","Bow"],"modelSettings":{"posenet":{"architecture":"MobileNetV1","outputStride":16,"inputResolution":257,"multiplier":0.75}}}

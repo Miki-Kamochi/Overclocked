@@ -135,16 +135,26 @@ export default function GameScreen({
   me,
   lang = "en",
 }: Props) {
+  const GAME_LENGTH = 10;
+
   const cards = useMemo(() => {
     // In battle mode a shared seed guarantees both players see the same order;
     // solo play stays random.
-    if (seed !== undefined) return seededShuffle(deck.cards, seed);
-    const arr = [...deck.cards];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
+    const shuffled =
+      seed !== undefined
+        ? seededShuffle(deck.cards, seed)
+        : (() => {
+            const arr = [...deck.cards];
+            for (let i = arr.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+          })();
+    // Repeat the shuffled list until we have at least GAME_LENGTH cards.
+    const result = [...shuffled];
+    while (result.length < GAME_LENGTH) result.push(...shuffled);
+    return result.slice(0, GAME_LENGTH);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [cardIndex, setCardIndex] = useState(0);

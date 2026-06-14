@@ -13,7 +13,7 @@ type Props = {
 const DECK_COLORS: Record<string, { cover: string; spine: string }> = {
   "directions":        { cover: "bg-teal-700",   spine: "bg-teal-900"   },
   "body-parts":        { cover: "bg-orange-700", spine: "bg-orange-900" },
-  "body-language":     { cover: "bg-emerald-700", spine: "bg-emerald-900" },
+  "body-language":     { cover: "bg-blue-700",    spine: "bg-blue-900"    },
   "abstract-concepts": { cover: "bg-indigo-700", spine: "bg-indigo-900" },
 };
 

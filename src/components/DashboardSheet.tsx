@@ -19,7 +19,7 @@ function formatTime(s: number) {
 const DECK_BAR_COLOR: Record<string, string> = {
   "directions":        "bg-teal-700",
   "body-parts":        "bg-orange-700",
-  "body-language":     "bg-emerald-700",
+  "body-language":     "bg-blue-700",
   "abstract-concepts": "bg-indigo-700",
 };
 

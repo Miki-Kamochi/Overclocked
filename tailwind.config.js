@@ -4,7 +4,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Syne", "system-ui", "sans-serif"],
+        // Body text uses a normal-width UI font; Syne is reserved for the
+        // `font-display` headings/logo (it's a wide display face, too chunky
+        // for paragraphs).
+        sans: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
         display: ["Syne", "system-ui", "sans-serif"],
       },
       keyframes: {

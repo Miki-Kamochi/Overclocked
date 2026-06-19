@@ -278,7 +278,7 @@ export default function GameScreen({
   }, [state]);
 
   return (
-    <div className="relative mx-auto flex h-screen max-w-5xl flex-col gap-3 overflow-hidden px-6 py-4">
+    <div className="relative mx-auto flex h-[100svh] max-w-5xl flex-col gap-3 overflow-hidden px-6 py-4">
 
       {/* 3-2-1-Go countdown overlay */}
       {countdown !== null && (
@@ -357,7 +357,7 @@ export default function GameScreen({
           }}
         >
           <div
-            className={`flex min-h-[16rem] flex-col justify-between rounded-sm px-7 py-6 shadow-[4px_6px_24px_rgba(0,0,0,0.18)] transition-all duration-300 lg:min-h-[20rem] ${
+            className={`flex min-h-[12rem] flex-col justify-between rounded-sm px-7 py-6 shadow-[4px_6px_24px_rgba(0,0,0,0.18)] transition-all duration-300 sm:min-h-[16rem] lg:min-h-[20rem] ${
               state === "correct"
                 ? "animate-pop bg-emerald-300"
                 : state === "wrong"

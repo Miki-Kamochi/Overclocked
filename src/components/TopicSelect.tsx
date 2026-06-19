@@ -17,7 +17,11 @@ const DECK_COLORS: Record<string, { cover: string; spine: string }> = {
   "abstract-concepts": { cover: "bg-indigo-700", spine: "bg-indigo-900" },
 };
 
-const BOOK_HEIGHTS = ["h-[25vh]", "h-[30vh]", "h-[28vh]"];
+const BOOK_HEIGHTS = [
+  "h-[clamp(150px,25vh,240px)]",
+  "h-[clamp(180px,30vh,290px)]",
+  "h-[clamp(168px,28vh,270px)]",
+];
 
 function safeParse<T>(raw: string | null, fallback: T): T {
   try {
@@ -49,7 +53,7 @@ export default function TopicSelect({ onPick, onBattle }: Props) {
   const showStart = selected !== null && (hovered === null || hovered === selected);
 
   return (
-    <div className="h-screen overflow-hidden bg-neutral-50 text-neutral-900">
+    <div className="min-h-[100svh] bg-neutral-50 text-neutral-900">
       <div className="mx-auto max-w-4xl px-6">
 
         {/* Nav */}
@@ -58,7 +62,7 @@ export default function TopicSelect({ onPick, onBattle }: Props) {
             <h1 className="font-display text-4xl font-bold tracking-tight">KATA</h1>
             <p className="mt-1 text-xs text-neutral-400">Your body is the controller</p>
           </div>
-          <div className="absolute left-1/2 mt-1 -translate-x-1/2">
+          <div className="absolute left-1/2 mt-1 hidden -translate-x-1/2 lg:block">
             <div className="flex w-72 items-center gap-2 rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-400">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
@@ -76,8 +80,9 @@ export default function TopicSelect({ onPick, onBattle }: Props) {
           </div>
         </nav>
 
-        {/* Bookshelf */}
-        <div className="flex w-full items-end gap-4">
+        {/* Bookshelf — scrolls horizontally on narrow screens instead of clipping.
+            pt-6 leaves headroom for the lift/drop-shadow when a book is selected. */}
+        <div className="flex w-full items-end gap-4 overflow-x-auto px-1 pt-6 pb-1">
 
           {/* Decorative horizontal stack — left */}
           <div className="mb-0 flex shrink-0 flex-col-reverse gap-px">
